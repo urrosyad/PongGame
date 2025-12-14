@@ -210,7 +210,7 @@ class PongGame:
         self.gameover_text = self.canvas.create_text(
             self.WIDTH / 2, self.HEIGHT / 2,
             text="",
-            font=("Arial", 48, "bold"),
+            font=("Arial", 32, "bold"),  # Diperkecil dari 48 jadi 32
             fill=self.ACCENT_COLOR,
             justify="center",
             state="hidden"
@@ -358,9 +358,16 @@ class PongGame:
         self.__game_running = False
         
         winner_color = "#FF6B6B" if self.__winner == 1 else "#4ECDC4"
+        
+        # Text yang lebih compact dengan line spacing yang baik
+        game_over_message = f"PLAYER {self.__winner} WINS!\n\n"
+        game_over_message += f"Final Score: {self.__player1_score} - {self.__player2_score}\n\n"
+        game_over_message += "Press ENTER to Play Again\n"
+        game_over_message += "Press ESC for Menu"
+        
         self.canvas.itemconfig(
             self.gameover_text,
-            text=f"PLAYER {self.__winner} WINS!\n\nPress ENTER to Play Again\nESC for Menu",
+            text=game_over_message,
             fill=winner_color,
             state="normal"
         )
@@ -424,7 +431,8 @@ class PongGame:
     
     def _spawn_powerup(self):
         """Spawn power-up secara random"""
-        if self.__current_powerup is None and random.random() < self.POWERUP_SPAWN_CHANCE:
+        # Spawn power-up jika tidak ada yang aktif atau yang sebelumnya sudah tidak aktif
+        if (self.__current_powerup is None or not self.__current_powerup.is_active()) and random.random() < self.POWERUP_SPAWN_CHANCE:
             self.__current_powerup = PowerUp.spawn_random(self.WIDTH, self.HEIGHT)
     
     def _check_powerup_collection(self):
@@ -435,6 +443,13 @@ class PongGame:
         # Cek collision dengan ball
         if self.ball.collides_with(self.__current_powerup):
             powerup_type = self.__current_powerup.get_type()
+            
+            # Simpan posisi untuk particle effect
+            powerup_x = self.__current_powerup.get_x()
+            powerup_y = self.__current_powerup.get_y()
+            powerup_color = self.__current_powerup.get_color()
+            
+            # Collect power-up
             self.__current_powerup.collect()
             self.sound_manager.play_powerup_collect()
             
@@ -458,11 +473,14 @@ class PongGame:
             
             # Particle effect
             self.particle_system.emit(
-                self.__current_powerup.get_x(),
-                self.__current_powerup.get_y(),
-                self.__current_powerup.get_color(),
+                powerup_x,
+                powerup_y,
+                powerup_color,
                 count=20
             )
+            
+            # Set current_powerup ke None agar bisa spawn lagi
+            self.__current_powerup = None
     
     def _update_powerup(self):
         """Update power-up timer dan reset jika habis"""
@@ -494,6 +512,9 @@ class PongGame:
         # Update power-up
         if self.__current_powerup and self.__current_powerup.is_active():
             self.__current_powerup.update()
+            # Jika lifetime habis, set ke None agar bisa spawn lagi
+            if not self.__current_powerup.is_active():
+                self.__current_powerup = None
         
         self._update_powerup()
         self._spawn_powerup()
